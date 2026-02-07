@@ -21,9 +21,32 @@ const ProductPage: React.FC<ProductPageProps> = ({ product, sectionProducts, onN
   const [activeImageUrl, setActiveImageUrl] = useState(product.imageUrl);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState(COLORS[0].name);
+  const [isFading, setIsFading] = useState(false);
 
   const formatPrice = (price: number) => {
     return price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
+
+  const handleImageSelect = (newUrl: string) => {
+    if (newUrl === activeImageUrl) return;
+
+    setIsFading(true);
+    setTimeout(() => {
+        setActiveImageUrl(newUrl);
+        setIsFading(false);
+    }, 200); // Duration matches the transition duration
+  };
+
+  const currentIndex = sectionProducts.findIndex(p => p.imageUrl === activeImageUrl);
+
+  const handleNext = () => {
+    const nextIndex = (currentIndex + 1) % sectionProducts.length;
+    handleImageSelect(sectionProducts[nextIndex].imageUrl);
+  };
+
+  const handlePrevious = () => {
+    const prevIndex = (currentIndex - 1 + sectionProducts.length) % sectionProducts.length;
+    handleImageSelect(sectionProducts[prevIndex].imageUrl);
   };
   
   const handleAddToCart = () => {
@@ -62,14 +85,36 @@ const ProductPage: React.FC<ProductPageProps> = ({ product, sectionProducts, onN
                 <button 
                   key={p.id} 
                   className={`w-16 h-20 flex-shrink-0 rounded-md overflow-hidden transition-all duration-200 ${activeImageUrl === p.imageUrl ? 'ring-2 ring-white ring-offset-2 ring-offset-black' : 'opacity-60 hover:opacity-100'}`}
-                  onClick={() => setActiveImageUrl(p.imageUrl)}
+                  onClick={() => handleImageSelect(p.imageUrl)}
                 >
                   <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
-            <div className="flex-1 aspect-[4/5] bg-neutral-900 rounded-lg overflow-hidden">
-              <img src={activeImageUrl} alt="Produto em destaque" className="w-full h-full object-cover" />
+            <div className="relative group flex-1 aspect-[4/5] bg-neutral-900 rounded-lg overflow-hidden">
+              <img 
+                src={activeImageUrl} 
+                alt="Produto em destaque" 
+                className={`w-full h-full object-cover transition-opacity duration-200 ease-in-out ${isFading ? 'opacity-0' : 'opacity-100'}`}
+              />
+               <button 
+                onClick={handlePrevious}
+                className="absolute top-1/2 left-2 md:left-4 -translate-y-1/2 p-2 bg-black/40 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-black/60 focus:outline-none focus:ring-2 focus:ring-white"
+                aria-label="Imagem anterior"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <button 
+                onClick={handleNext}
+                className="absolute top-1/2 right-2 md:right-4 -translate-y-1/2 p-2 bg-black/40 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-black/60 focus:outline-none focus:ring-2 focus:ring-white"
+                aria-label="Próxima imagem"
+              >
+                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
             </div>
           </div>
           
