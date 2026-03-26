@@ -52,9 +52,12 @@ const passSportsProducts: Product[] = [
 
 
 import { Toaster } from 'sonner';
-import { Analytics } from '@vercel/analytics/react';
 
 const App: React.FC = () => {
+  useEffect(() => {
+    console.log('App component mounted');
+    console.log('isAuthReady:', isAuthReady);
+  }, [isAuthReady]);
   const [currentPage, setCurrentPage] = useState<'home' | 'auth' | 'product'>('home');
   const [selectedProductInfo, setSelectedProductInfo] = useState<{ product: Product, sectionProducts: Product[] } | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -268,7 +271,6 @@ const App: React.FC = () => {
   return (
     <div className="bg-black text-white min-h-screen">
       <Toaster position="top-center" richColors />
-      <Analytics />
       {checkoutStatus === 'success' && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] bg-green-600 text-white px-6 py-3 rounded-full shadow-lg font-bold animate-bounce">
           Pagamento realizado com sucesso! 🎉
