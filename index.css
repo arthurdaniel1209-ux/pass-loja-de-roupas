@@ -1,15 +1,11 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-logo-pass: "Oi", cursive;
+  --color-primary: #ffffff;
+  --color-secondary: #1a1a1a;
 }
 
-@layer base {
-  html {
-    scroll-behavior: smooth;
-  }
-  body {
-    @apply bg-black text-white font-sans;
-  }
+/* Custom styles */
+.font-logo-pass {
+  font-family: 'Oi', cursive;
 }

@@ -1,6 +1,7 @@
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { MercadoPagoConfig, Preference } from 'mercadopago';
 
@@ -113,16 +114,32 @@ async function startServer() {
       appType: 'spa',
     });
     app.use(vite.middlewares);
+
+    // Explicitly serve index.html with transformation in dev mode
+    app.get('*all', async (req, res, next) => {
+      const url = req.originalUrl;
+      try {
+        let template = fs.readFileSync(path.resolve(__dirname, 'index.html'), 'utf-8');
+        template = await vite.transformIndexHtml(url, template);
+        res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
+      } catch (e: any) {
+        vite.ssrFixStacktrace(e);
+        next(e);
+      }
+    });
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
+    app.get('*all', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT} (NODE_ENV=${process.env.NODE_ENV})`);
+    console.log('--------------------------------------------------');
+    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
+    console.log('--------------------------------------------------');
   });
 
   return app;
