@@ -13,7 +13,7 @@ const CategoryCard: React.FC<{ imageUrl: string; title: string }> = ({ imageUrl,
 const CategoryShowcase: React.FC = () => {
   return (
     <div className="my-16">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <CategoryCard imageUrl="https://picsum.photos/seed/cat1/800/800" title="Drop 6" />
         <CategoryCard imageUrl="https://picsum.photos/seed/cat2/800/800" title="Accessories" />
         <CategoryCard imageUrl="https://picsum.photos/seed/cat3/800/800" title="Shorts" />

@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { toast } from 'sonner';
 import type { Product } from '../types';
 
 interface ProductPageProps {
@@ -8,6 +9,7 @@ interface ProductPageProps {
   onNavigateBack: () => void;
   isLoggedIn: boolean;
   onNavigate: (page: 'auth') => void;
+  onAddToCart: (product: Product, size: string, color: string) => void;
 }
 
 const SIZES = ['P', 'M', 'G', 'GG'];
@@ -17,7 +19,7 @@ const COLORS = [
     { name: 'Cinza', class: 'bg-gray-500' },
 ];
 
-const ProductPage: React.FC<ProductPageProps> = ({ product, sectionProducts, onNavigateBack, isLoggedIn, onNavigate }) => {
+const ProductPage: React.FC<ProductPageProps> = ({ product, sectionProducts, onNavigateBack, isLoggedIn, onNavigate, onAddToCart }) => {
   const [activeImageUrl, setActiveImageUrl] = useState(product.imageUrl);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState(COLORS[0].name);
@@ -50,21 +52,35 @@ const ProductPage: React.FC<ProductPageProps> = ({ product, sectionProducts, onN
   };
   
   const handleAddToCart = () => {
-    if (isLoggedIn) {
-      alert('Funcionalidade de carrinho não implementada.');
-    } else {
-      alert('É necessário estar logado para adicionar itens ao carrinho.');
+    if (!isLoggedIn) {
+      toast.error('É necessário estar logado para adicionar itens ao carrinho.');
       onNavigate('auth');
+      return;
     }
+
+    if (!selectedSize) {
+      toast.warning('Por favor, selecione um tamanho.');
+      return;
+    }
+
+    onAddToCart(product, selectedSize, selectedColor);
+    toast.success(`${product.name} adicionado ao carrinho!`);
   };
 
   const handleBuyNow = () => {
-    if (isLoggedIn) {
-      alert('Funcionalidade de compra não implementada.');
-    } else {
-      alert('É necessário estar logado para comprar.');
+    if (!isLoggedIn) {
+      toast.error('É necessário estar logado para comprar.');
       onNavigate('auth');
+      return;
     }
+
+    if (!selectedSize) {
+      toast.warning('Por favor, selecione um tamanho.');
+      return;
+    }
+
+    // For now, add to cart and open it
+    onAddToCart(product, selectedSize, selectedColor);
   };
 
   return (

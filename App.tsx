@@ -1,12 +1,25 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import HeroSection from './components/HeroSection';
 import LaunchSection from './components/LaunchSection';
 import Footer from './components/Footer';
 import AuthPage from './components/AuthPage';
 import ProductPage from './components/ProductPage';
-import type { Product } from './types';
+import CartDrawer from './components/CartDrawer';
+import type { Product, CartItem } from './types';
+import { auth, db, handleFirestoreError, OperationType } from './firebase';
+import { onAuthStateChanged, signOut, User } from 'firebase/auth';
+import { 
+  collection, 
+  onSnapshot, 
+  doc, 
+  setDoc, 
+  deleteDoc, 
+  updateDoc, 
+  getDoc,
+  increment 
+} from 'firebase/firestore';
 
 // Product Data for each section
 const classicProducts: Product[] = [
@@ -38,10 +51,52 @@ const passSportsProducts: Product[] = [
 ];
 
 
+import { Toaster } from 'sonner';
+
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<'home' | 'auth' | 'product'>('home');
   const [selectedProductInfo, setSelectedProductInfo] = useState<{ product: Product, sectionProducts: Product[] } | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [checkoutStatus, setCheckoutStatus] = useState<'success' | 'canceled' | null>(null);
+
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    if (query.get('success')) {
+      setCheckoutStatus('success');
+      // Clear cart locally (optional, since Firestore will be the source of truth)
+      // In a real app, you'd probably wait for a webhook to clear the cart in Firestore
+    }
+    if (query.get('canceled')) {
+      setCheckoutStatus('canceled');
+    }
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setIsAuthReady(true);
+      if (!currentUser) {
+        setCartItems([]);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      const cartRef = collection(db, 'users', user.uid, 'cart');
+      const unsubscribe = onSnapshot(cartRef, (snapshot) => {
+        const items = snapshot.docs.map(doc => doc.data() as CartItem);
+        setCartItems(items);
+      }, (error) => {
+        handleFirestoreError(error, OperationType.GET, `users/${user.uid}/cart`);
+      });
+      return () => unsubscribe();
+    }
+  }, [user]);
 
   const handleNavigate = (page: 'home' | 'auth') => {
     setCurrentPage(page);
@@ -54,30 +109,124 @@ const App: React.FC = () => {
     window.scrollTo(0, 0);
   };
 
-  const handleLoginSuccess = () => {
-    setIsLoggedIn(true);
-    setCurrentPage('home');
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setCurrentPage('home');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
+  const handleAddToCart = async (product: Product, size: string, color: string) => {
+    if (!user) {
+      handleNavigate('auth');
+      return;
+    }
+
+    const itemId = `${product.id}-${size}-${color}`;
+    const itemRef = doc(db, 'users', user.uid, 'cart', itemId);
+
+    try {
+      const docSnap = await getDoc(itemRef);
+      if (docSnap.exists()) {
+        await updateDoc(itemRef, {
+          quantity: increment(1)
+        });
+      } else {
+        const newItem: CartItem = {
+          ...product,
+          quantity: 1,
+          size,
+          color
+        };
+        await setDoc(itemRef, newItem);
+      }
+      setIsCartOpen(true);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/cart/${itemId}`);
+    }
+  };
+
+  const handleUpdateQuantity = async (id: number, size: string, color: string, delta: number) => {
+    if (!user) return;
+    const itemId = `${id}-${size}-${color}`;
+    const itemRef = doc(db, 'users', user.uid, 'cart', itemId);
+
+    try {
+      const docSnap = await getDoc(itemRef);
+      if (docSnap.exists()) {
+        const currentQty = docSnap.data().quantity;
+        if (currentQty + delta <= 0) {
+          await deleteDoc(itemRef);
+        } else {
+          await updateDoc(itemRef, {
+            quantity: increment(delta)
+          });
+        }
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/cart/${itemId}`);
+    }
+  };
+
+  const handleRemoveItem = async (id: number, size: string, color: string) => {
+    if (!user) return;
+    const itemId = `${id}-${size}-${color}`;
+    const itemRef = doc(db, 'users', user.uid, 'cart', itemId);
+
+    try {
+      await deleteDoc(itemRef);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/cart/${itemId}`);
+    }
   };
 
   const renderPage = () => {
+    if (!isAuthReady) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-black">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+        </div>
+      );
+    }
+
     switch(currentPage) {
       case 'product':
         return selectedProductInfo && (
-          <ProductPage 
-            product={selectedProductInfo.product}
-            sectionProducts={selectedProductInfo.sectionProducts}
-            onNavigateBack={() => handleNavigate('home')}
-            isLoggedIn={isLoggedIn}
-            onNavigate={handleNavigate}
-          />
+          <>
+            <Header 
+              onNavigate={handleNavigate} 
+              isLoggedIn={!!user} 
+              onLogout={handleLogout} 
+              onOpenCart={() => setIsCartOpen(true)}
+              cartCount={cartItems.reduce((sum, item) => sum + item.quantity, 0)}
+            />
+            <main className="pt-16">
+              <ProductPage 
+                product={selectedProductInfo.product}
+                sectionProducts={selectedProductInfo.sectionProducts}
+                onNavigateBack={() => handleNavigate('home')}
+                isLoggedIn={!!user}
+                onNavigate={handleNavigate}
+                onAddToCart={handleAddToCart}
+              />
+            </main>
+          </>
         );
       case 'auth':
-        return <AuthPage onNavigate={handleNavigate} onLoginSuccess={handleLoginSuccess} />;
+        return <AuthPage onNavigate={handleNavigate} />;
       case 'home':
       default:
         return (
           <>
-            <Header onNavigate={handleNavigate} isLoggedIn={isLoggedIn} />
+            <Header 
+              onNavigate={handleNavigate} 
+              isLoggedIn={!!user} 
+              onLogout={handleLogout} 
+              onOpenCart={() => setIsCartOpen(true)}
+              cartCount={cartItems.reduce((sum, item) => sum + item.quantity, 0)}
+            />
             <main className="pt-16">
               <HeroSection />
               <LaunchSection 
@@ -117,7 +266,27 @@ const App: React.FC = () => {
 
   return (
     <div className="bg-black text-white min-h-screen">
+      <Toaster position="top-center" richColors />
+      {checkoutStatus === 'success' && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] bg-green-600 text-white px-6 py-3 rounded-full shadow-lg font-bold animate-bounce">
+          Pagamento realizado com sucesso! 🎉
+          <button onClick={() => setCheckoutStatus(null)} className="ml-4 text-white/80 hover:text-white">×</button>
+        </div>
+      )}
+      {checkoutStatus === 'canceled' && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] bg-red-600 text-white px-6 py-3 rounded-full shadow-lg font-bold">
+          Pagamento cancelado. Tente novamente quando quiser.
+          <button onClick={() => setCheckoutStatus(null)} className="ml-4 text-white/80 hover:text-white">×</button>
+        </div>
+      )}
       {renderPage()}
+      <CartDrawer 
+        isOpen={isCartOpen} 
+        onClose={() => setIsCartOpen(false)} 
+        items={cartItems}
+        onUpdateQuantity={handleUpdateQuantity}
+        onRemoveItem={handleRemoveItem}
+      />
     </div>
   );
 };

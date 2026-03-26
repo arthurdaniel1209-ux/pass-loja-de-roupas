@@ -1,0 +1,42 @@
+{
+  "entities": {
+    "users": {
+      "title": "User Profile",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique user ID" },
+        "email": { "type": "string", "format": "email", "description": "User email address" },
+        "displayName": { "type": "string", "description": "User display name" },
+        "photoURL": { "type": "string", "format": "uri", "description": "User profile photo URL" },
+        "role": { "type": "string", "enum": ["user", "admin"], "description": "User role" }
+      },
+      "required": ["uid", "email"]
+    },
+    "cartItem": {
+      "title": "Cart Item",
+      "description": "An item in the user's shopping cart",
+      "type": "object",
+      "properties": {
+        "id": { "type": "number", "description": "Product ID" },
+        "name": { "type": "string", "description": "Product name" },
+        "price": { "type": "number", "description": "Product price" },
+        "imageUrl": { "type": "string", "description": "Product image URL" },
+        "quantity": { "type": "number", "description": "Quantity of the item" },
+        "size": { "type": "string", "description": "Selected size" },
+        "color": { "type": "string", "description": "Selected color" }
+      },
+      "required": ["id", "name", "price", "imageUrl", "quantity", "size", "color"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "users",
+      "description": "User profile documents"
+    },
+    "/users/{userId}/cart/{itemId}": {
+      "schema": "cartItem",
+      "description": "Items in the user's cart"
+    }
+  }
+}
