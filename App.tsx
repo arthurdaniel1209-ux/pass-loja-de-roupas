@@ -54,10 +54,6 @@ const passSportsProducts: Product[] = [
 import { Toaster } from 'sonner';
 
 const App: React.FC = () => {
-  useEffect(() => {
-    console.log('App component mounted');
-    console.log('isAuthReady:', isAuthReady);
-  }, [isAuthReady]);
   const [currentPage, setCurrentPage] = useState<'home' | 'auth' | 'product'>('home');
   const [selectedProductInfo, setSelectedProductInfo] = useState<{ product: Product, sectionProducts: Product[] } | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -65,6 +61,11 @@ const App: React.FC = () => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [checkoutStatus, setCheckoutStatus] = useState<'success' | 'canceled' | null>(null);
+
+  useEffect(() => {
+    console.log('App component mounted');
+    console.log('isAuthReady:', isAuthReady);
+  }, [isAuthReady]);
 
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
